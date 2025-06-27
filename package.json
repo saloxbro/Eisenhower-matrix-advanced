@@ -1,0 +1,49 @@
+{
+  "name": "eisenhower-matrix-advanced",
+  "version": "1.0.0",
+  "description": "A modern and advanced Eisenhower Matrix application for task management with a futuristic UI.",
+  "main": "src/app.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "keywords": [
+    "Eisenhower Matrix",
+    "task management",
+    "productivity",
+    "Pomodoro",
+    "focus mode"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "dependencies": {
+    "@fortawesome/free-solid-svg-icons": "^6.7.2",
+    "@fortawesome/react-fontawesome": "^0.2.2",
+    "file-saver": "^2.0.5",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^3.0.1",
+    "live-server": "^1.2.1",
+    "lodash": "^4.17.21",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "webpack": "^5.64.4",
+    "webpack-cli": "^4.9.1",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "babel-loader": "^8.2.3",
+    "css-loader": "^6.5.1",
+    "style-loader": "^3.3.1",
+    "vite": "^7.0.0",
+    "webpack-dev-server": "^4.7.0"
+  },
+  "homepage": "https://github.com/yourusername/eisenhower-matrix-advanced#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yourusername/eisenhower-matrix-advanced.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/eisenhower-matrix-advanced/issues"
+  }
+}
