@@ -3,16 +3,125 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Eisenhower Matrix Advanced</title>
-    <link rel="stylesheet" href="styles/style.css">
-    <link rel="stylesheet" href="styles/themes.css">
+    <title>Eisenhower Matrix Planner</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div id="app"></div>
-    <script type="module" src="/main.jsx"></script>
+    <header>
+        <div class="header-container">
+            <div class="logo-container">
+                <img src="https://placehold.co/40x40/7c3aed/ffffff?text=EM" alt="Logo" class="logo">
+                <h1>Eisenhower Matrix</h1>
+            </div>
+            <div class="controls">
+                <button id="focus-mode-btn" class="control-btn"><i class="fas fa-bullseye"></i> Focus Mode</button>
+                <button id="theme-toggle" class="control-btn"><i class="fas fa-moon"></i></button>
+            </div>
+        </div>
+        <div id="quote-container" class="quote-container">
+            <p>"<span id="quote-text">The key is not to prioritize what's on your schedule, but to schedule your priorities.</span>" - <span id="quote-author">Stephen Covey</span></p>
+        </div>
+    </header>
+
+    <main class="matrix-container">
+        <!-- Quadrant 1: Urgent & Important -->
+        <div class="quadrant" id="q1">
+            <div class="quadrant-header">
+                <h2>Urgent & Important</h2>
+                <span class="quadrant-subtitle">Do First</span>
+            </div>
+            <form class="task-form" data-quadrant="q1">
+                <input type="text" class="task-input" placeholder="Add a new task..." required>
+                <input type="number" class="time-input" placeholder="Mins" min="1">
+                <button type="submit" class="add-task-btn"><i class="fas fa-plus"></i> Add</button>
+            </form>
+            <ul class="task-list" id="task-list-q1" data-quadrant-id="q1"></ul>
+            <div class="quadrant-footer">
+                <span>Total Time: <span id="total-time-q1">0</span> min</span>
+            </div>
+        </div>
+
+        <!-- Quadrant 2: Not Urgent but Important -->
+        <div class="quadrant" id="q2">
+            <div class="quadrant-header">
+                <h2>Not Urgent & Important</h2>
+                 <span class="quadrant-subtitle">Schedule</span>
+            </div>
+            <form class="task-form" data-quadrant="q2">
+                <input type="text" class="task-input" placeholder="Add a new task..." required>
+                <input type="number" class="time-input" placeholder="Mins" min="1">
+                <button type="submit" class="add-task-btn"><i class="fas fa-plus"></i> Add</button>
+            </form>
+            <ul class="task-list" id="task-list-q2" data-quadrant-id="q2"></ul>
+             <div class="quadrant-footer">
+                <span>Total Time: <span id="total-time-q2">0</span> min</span>
+            </div>
+        </div>
+
+        <!-- Quadrant 3: Urgent but Not Important -->
+        <div class="quadrant" id="q3">
+            <div class="quadrant-header">
+                <h2>Urgent & Not Important</h2>
+                 <span class="quadrant-subtitle">Delegate</span>
+            </div>
+            <form class="task-form" data-quadrant="q3">
+                <input type="text" class="task-input" placeholder="Add a new task..." required>
+                <input type="number" class="time-input" placeholder="Mins" min="1">
+                <button type="submit" class="add-task-btn"><i class="fas fa-plus"></i> Add</button>
+            </form>
+            <ul class="task-list" id="task-list-q3" data-quadrant-id="q3"></ul>
+             <div class="quadrant-footer">
+                <span>Total Time: <span id="total-time-q3">0</span> min</span>
+            </div>
+        </div>
+
+        <!-- Quadrant 4: Not Urgent & Not Important -->
+        <div class="quadrant" id="q4">
+            <div class="quadrant-header">
+                <h2>Not Urgent & Not Important</h2>
+                 <span class="quadrant-subtitle">Eliminate</span>
+            </div>
+            <form class="task-form" data-quadrant="q4">
+                <input type="text" class="task-input" placeholder="Add a new task..." required>
+                <input type="number" class="time-input" placeholder="Mins" min="1">
+                <button type="submit" class="add-task-btn"><i class="fas fa-plus"></i> Add</button>
+            </form>
+            <ul class="task-list" id="task-list-q4" data-quadrant-id="q4"></ul>
+             <div class="quadrant-footer">
+                <span>Total Time: <span id="total-time-q4">0</span> min</span>
+            </div>
+        </div>
+    </main>
+
+    <!-- Focus Mode Modal -->
+    <div id="focus-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <button id="close-modal-btn" class="close-modal">&times;</button>
+            <h2>Focus Mode</h2>
+            <p>Complete your "Urgent & Important" tasks one by one.</p>
+            <div id="focus-task-container">
+                <p id="focus-task-name">No tasks to focus on.</p>
+                <div id="pomodoro-timer">
+                    <span id="timer-display">25:00</span>
+                </div>
+                 <div class="timer-controls">
+                    <button id="start-timer-btn"><i class="fas fa-play"></i></button>
+                    <button id="pause-timer-btn"><i class="fas fa-pause"></i></button>
+                    <button id="reset-timer-btn"><i class="fas fa-redo"></i></button>
+                </div>
+            </div>
+             <div id="focus-task-list">
+                <!-- Tasks from Q1 will be dynamically inserted here -->
+            </div>
+        </div>
+    </div>
+    
+    <script src="app.js"></script>
 </body>
 </html>
