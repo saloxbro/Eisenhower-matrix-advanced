@@ -1,116 +1,70 @@
-:root {
-    --light-bg-color: #f4f7f9;
-    --light-text-color: #333;
-    --light-quadrant-bg: #ffffff;
-    --light-quadrant-border: #e0e0e0;
-    --light-header-bg: #ffffff;
-    --light-accent-color: #4a90e2;
-    --light-accent-color-dark: #357ABD;
-    --light-shadow-color: rgba(0, 0, 0, 0.05);
-    --light-input-bg: #f0f0f0;
-    --light-input-border: #dcdcdc;
-    --light-button-text-color: #fff;
-    --light-task-hover-bg: #f9f9f9;
-    --light-completed-text-color: #999;
-
-    --dark-bg-color: #1a1a2e;
-    --dark-text-color: #e0e0e0;
-    --dark-quadrant-bg: #162447;
-    --dark-quadrant-border: #1f4068;
-    --dark-header-bg: #162447;
-    --dark-accent-color: #1f4068;
-    --dark-accent-color-dark: #1b3a5e;
-    --dark-shadow-color: rgba(0, 0, 0, 0.2);
-    --dark-input-bg: #1f4068;
-    --dark-input-border: #1b3a5e;
-    --dark-button-text-color: #e0e0e0;
-    --dark-task-hover-bg: #1b3a5e;
-    --dark-completed-text-color: #777;
-
-    --futuristic-bg-color: #0d0d0d;
-    --futuristic-text-color: #e0e0e0;
-    --futuristic-quadrant-bg: #1a1a1a;
-    --futuristic-quadrant-border: #333;
-    --futuristic-header-bg: #1a1a1a;
-    --futuristic-accent-color: #00ffcc;
-    --futuristic-accent-color-dark: #00cc99;
-    --futuristic-shadow-color: rgba(0, 255, 204, 0.2);
-    --futuristic-input-bg: #222;
-    --futuristic-input-border: #444;
-    --futuristic-button-text-color: #000;
-    --futuristic-task-hover-bg: #333;
-    --futuristic-completed-text-color: #999;
-}
-
-/* Professional Dark Theme */
+/* --- Professional Dark Theme --- */
 [data-theme="dark"] {
-    --primary: #2563eb;
-    --primary-dark: #1e40af;
-    --bg: #181a1b;
-    --bg-light: #23272f;
-    --bg-dark: #16181a;
+    --primary: #60a5fa;
+    --primary-dark: #3b82f6;
+    --bg: #111827;
+    --bg-light: #1f2937;
+    --bg-dark: #374151;
     --text: #f3f4f6;
-    --text-muted: #a1a1aa;
-    --border: #2d323b;
-    --shadow: 0 4px 24px 0 rgba(30,64,175,0.10);
-    --radius: 14px;
-    --accent: #10b981;
-    --accent-dark: #047857;
-    --danger: #ef4444;
-    --success: #22d3ee;
-    --font: 'Inter', 'Segoe UI', Arial, sans-serif;
+    --text-muted: #9ca3af;
+    --border: #374151;
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.2);
+    --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.2);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -4px rgba(0, 0, 0, 0.3);
+    --danger: #f87171;
+    --success: #34d399;
+    --warning: #fbbf24;
+    --info: #60a5fa;
 }
 
-[data-theme="light"] {
-    background-color: var(--light-bg-color);
-    color: var(--light-text-color);
+[data-theme="dark"] .task-time {
+    color: #e0e7ff;
+    background: color-mix(in srgb, var(--primary) 25%, transparent);
 }
 
-[data-theme="dark"] {
-    background-color: var(--dark-bg-color);
-    color: var(--dark-text-color);
-}
-
+/* --- Futuristic Theme --- */
 [data-theme="futuristic"] {
-    background-color: var(--futuristic-bg-color);
-    color: var(--futuristic-text-color);
-}
-
-.quadrant {
-    background-color: var(--light-quadrant-bg);
-    border: 1px solid var(--light-quadrant-border);
-}
-
-[data-theme="dark"] .quadrant {
-    background-color: var(--dark-quadrant-bg);
-    border: 1px solid var(--dark-quadrant-border);
+    --primary: #00ddb5;
+    --primary-dark: #00b894;
+    --bg: #0a192f;
+    --bg-light: #102340;
+    --bg-dark: #172a45;
+    --text: #ccd6f6;
+    --text-muted: #8892b0;
+    --border: #173b63;
+    --shadow-sm: 0 1px 2px 0 rgba(0,0,0, 0.2);
+    --shadow: 0 0 15px -3px color-mix(in srgb, var(--primary) 20%, transparent);
+    --shadow-lg: 0 0 25px -3px color-mix(in srgb, var(--primary) 30%, transparent);
+    --danger: #ff4d4d;
+    --success: #50e3c2;
+    --warning: #ffc400;
+    --info: #00bfff;
+    --font-body: 'Inter', monospace;
 }
 
 [data-theme="futuristic"] .quadrant {
-    background-color: var(--futuristic-quadrant-bg);
-    border: 1px solid var(--futuristic-quadrant-border);
+    backdrop-filter: blur(10px);
+    background: color-mix(in srgb, var(--bg-light) 70%, transparent);
+    border-color: color-mix(in srgb, var(--primary) 50%, transparent);
 }
-
-.control-btn {
-    background-color: var(--light-accent-color);
+[data-theme="futuristic"] .logo-container .title {
+    text-shadow: 0 0 5px var(--primary), 0 0 10px var(--primary);
 }
-
-[data-theme="dark"] .control-btn {
-    background-color: var(--dark-accent-color);
+[data-theme="futuristic"] .task-item {
+    border-image: linear-gradient(to right, var(--primary), transparent) 1;
 }
-
-[data-theme="futuristic"] .control-btn {
-    background-color: var(--futuristic-accent-color);
+[data-theme="futuristic"] .modal-content {
+    border-color: var(--primary);
+    box-shadow: 0 0 20px var(--primary), inset 0 0 10px color-mix(in srgb, var(--primary) 20%, transparent);
 }
-
-.control-btn:hover {
-    background-color: var(--light-accent-color-dark);
+[data-theme="futuristic"] .control-btn,
+[data-theme="futuristic"] .add-task-btn {
+    background: transparent;
+    border: 1px solid var(--primary);
+    color: var(--primary);
 }
-
-[data-theme="dark"] .control-btn:hover {
-    background-color: var(--dark-accent-color-dark);
-}
-
-[data-theme="futuristic"] .control-btn:hover {
-    background-color: var(--futuristic-accent-color-dark);
+[data-theme="futuristic"] .control-btn:hover,
+[data-theme="futuristic"] .add-task-btn:hover {
+    background: color-mix(in srgb, var(--primary) 20%, transparent);
+    box-shadow: 0 0 10px var(--primary);
 }
