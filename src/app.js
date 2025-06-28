@@ -13,6 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const taskLists = document.querySelectorAll('.task-list');
     const focusModeBtn = document.getElementById('focus-mode-btn');
     const focusModal = document.getElementById('focus-modal');
+    const aiModal = document.getElementById('ai-modal');
     const closeModalBtn = document.getElementById('close-modal-btn');
     const focusTaskName = document.getElementById('focus-task-name');
     const timerDisplay = document.getElementById('timer-display');
@@ -23,12 +24,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const quoteText = document.getElementById('quote-text');
     const quoteAuthor = document.getElementById('quote-author');
     const aiSuggestBtns = document.querySelectorAll('.ai-suggest-btn');
-    const aiModal = document.getElementById('ai-modal');
     const aiModalTitle = document.getElementById('ai-modal-title');
     const aiModalContent = document.getElementById('ai-modal-content');
     const aiCloseModalBtn = document.getElementById('ai-close-modal-btn');
     const themeOptions = document.getElementById('theme-options');
     const currentThemeName = document.getElementById('current-theme-name');
+    const exportPdfBtn = document.getElementById('export-pdf-btn');
+    const themeToggleBtn = document.getElementById('theme-toggle-btn');
 
     // --- STATE MANAGEMENT --- //
     let tasks = JSON.parse(localStorage.getItem('tasks')) || { q1: [], q2: [], q3: [], q4: [] };
@@ -39,7 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let timeLeft = 25 * 60;
     let isTimerRunning = false;
     let currentFocusTask = null;
-    
+
     // --- GEMINI API HELPER --- //
     async function callGemini(prompt) {
         const apiKey = ""; // Canvas handles this
@@ -69,6 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const saveTasks = () => {
         localStorage.setItem('tasks', JSON.stringify(tasks));
         updateAllQuadrantSummaries();
+        updateAllProgressBars();
     };
 
     const renderTasks = () => {
@@ -76,7 +79,7 @@ document.addEventListener('DOMContentLoaded', () => {
             list.innerHTML = '';
             const quadrantId = list.dataset.quadrantId;
             if (tasks[quadrantId].length === 0) {
-                 list.innerHTML = `<li class="task-item empty">No tasks yet.</li>`;
+                list.innerHTML = `<li class="task-item empty">No tasks yet.</li>`;
             } else {
                 tasks[quadrantId].forEach(task => {
                     const taskElement = createTaskElement(task);
@@ -85,8 +88,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
         updateAllQuadrantSummaries();
+        updateAllProgressBars();
     };
-    
+
     const createTaskElement = (task) => {
         const li = document.createElement('li');
         li.classList.add('task-item');
@@ -108,13 +112,14 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
 
         li.addEventListener('dragstart', handleDragStart);
+        li.addEventListener('dragend', handleDragEnd);
         li.querySelector('.task-checkbox').addEventListener('change', () => toggleTaskCompletion(task.id, task.quadrant));
         li.querySelector('.delete-task-btn').addEventListener('click', () => deleteTask(task.id, task.quadrant));
         li.querySelector('.ai-breakdown-btn').addEventListener('click', () => handleAiBreakdown(task));
-        
+
         return li;
     };
-    
+
     const handleAddTask = (e) => {
         e.preventDefault();
         const form = e.target;
@@ -123,12 +128,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const quadrantId = form.dataset.quadrant;
         const taskName = taskInput.value.trim();
         if (!taskName) return;
-        addTask(taskName, quadrantId, timeInput.value.trim());
+        addTask(taskName, quadrantId, timeInput ? timeInput.value.trim() : null);
         form.reset();
     };
-    
+
     const addTask = (name, quadrantId, time = null) => {
-         const newTask = {
+        const newTask = {
             id: generateId(), name, quadrant: quadrantId,
             time: time ? parseInt(time, 10) : null, completed: false,
         };
@@ -146,24 +151,24 @@ document.addEventListener('DOMContentLoaded', () => {
             if (focusModal.classList.contains('active')) renderFocusTasks();
         }
     };
-    
+
     const deleteTask = (taskId, quadrantId) => {
         tasks[quadrantId] = tasks[quadrantId].filter(t => t.id !== taskId);
         saveTasks();
         renderTasks();
         if (focusModal.classList.contains('active')) renderFocusTasks();
     };
-    
+
     const updateQuadrantSummary = (quadrantId) => {
         const totalTimeEl = document.getElementById(`total-time-${quadrantId}`);
-        if(totalTimeEl){
+        if (totalTimeEl) {
             const totalMinutes = tasks[quadrantId]
                 .filter(task => !task.completed && task.time)
                 .reduce((sum, task) => sum + task.time, 0);
             totalTimeEl.textContent = totalMinutes;
         }
     };
-    
+
     const updateAllQuadrantSummaries = () => Object.keys(tasks).forEach(updateQuadrantSummary);
 
     // --- DRAG & DROP --- //
@@ -194,12 +199,21 @@ document.addEventListener('DOMContentLoaded', () => {
         localStorage.setItem('theme', theme);
         currentThemeName.textContent = theme.charAt(0).toUpperCase() + theme.slice(1);
     };
-    
+
     themeOptions.addEventListener('click', (e) => {
         e.preventDefault();
         const selectedTheme = e.target.dataset.theme;
         if (selectedTheme) applyTheme(selectedTheme);
     });
+
+    if (themeToggleBtn) {
+        themeToggleBtn.addEventListener('click', () => {
+            // Cycle through themes: dark -> light -> futuristic -> dark
+            const current = document.body.dataset.theme;
+            const next = current === 'dark' ? 'light' : current === 'light' ? 'futuristic' : 'dark';
+            applyTheme(next);
+        });
+    }
 
     // --- FOCUS MODE & POMODORO --- //
     const updateTimerDisplay = () => {
@@ -221,18 +235,18 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }, 1000);
     };
-    
+
     const pauseTimer = () => { isTimerRunning = false; clearInterval(timerInterval); };
     const resetTimer = () => { pauseTimer(); timeLeft = 25 * 60; updateTimerDisplay(); };
     const stopTimer = () => { pauseTimer(); };
-    
+
     const renderFocusTasks = () => {
         focusTaskList.innerHTML = '';
         const importantTasks = tasks.q1.filter(t => !t.completed);
-        
+
         if (importantTasks.length === 0) {
             focusTaskName.textContent = 'All done! Great work!';
-            if(currentFocusTask) currentFocusTask = null; // Clear the task
+            if (currentFocusTask) currentFocusTask = null;
             resetTimer();
             return;
         }
@@ -241,12 +255,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!currentFocusTask || importantTasks.every(t => t.id !== currentFocusTask.id)) {
             setFocusTask(importantTasks[0]);
         }
-        
+
         importantTasks.forEach(task => {
             const taskElement = document.createElement('div');
             taskElement.classList.add('task-item');
             if (currentFocusTask && task.id === currentFocusTask.id) {
-                // Use a more noticeable style for the active task in focus mode
                 taskElement.style.cssText = "border-color: var(--primary); transform: scale(1.02);";
             }
             taskElement.innerHTML = `<span>${task.name}</span>`;
@@ -255,25 +268,26 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
-    const setFocusTask = (task) => { 
-        currentFocusTask = task; 
-        focusTaskName.textContent = task.name; 
-        resetTimer(); 
-        renderFocusTasks(); 
+    const setFocusTask = (task) => {
+        currentFocusTask = task;
+        focusTaskName.textContent = task.name;
+        resetTimer();
+        renderFocusTasks();
     };
 
-    const openFocusModal = () => { focusModal.classList.add('active'); renderFocusTasks(); };
-    const closeFocusModal = () => { pauseTimer(); focusModal.classList.remove('active'); };
+    const openFocusModal = () => { focusModal.style.display = 'flex'; focusModal.classList.add('active'); renderFocusTasks(); };
+    const closeFocusModal = () => { focusModal.style.display = 'none'; focusModal.classList.remove('active'); pauseTimer(); };
 
     // --- AI FEATURE HANDLERS --- //
     const showAiModal = (title, content) => {
         aiModalTitle.textContent = title;
         aiModalContent.innerHTML = content;
+        aiModal.style.display = 'flex';
         aiModal.classList.add('active');
     };
 
     const showLoadingInModal = (title) => showAiModal(title, '<div class="spinner"></div>');
-    const closeAiModal = () => aiModal.classList.remove('active');
+    const closeAiModal = () => { aiModal.style.display = 'none'; aiModal.classList.remove('active'); };
 
     const handleAiBreakdown = async (task) => {
         showLoadingInModal(`Breaking Down: "${task.name}"`);
@@ -287,7 +301,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const handleAiSuggest = async (quadrantId) => {
         const goal = prompt("Enter a high-level goal to generate tasks for (e.g., 'Plan a trip to Japan'):");
         if (!goal || goal.trim() === '') return;
-        const quadrantName = {q1: 'Urgent & Important', q2: 'Not Urgent & Important', q3: 'Urgent & Not Important', q4: 'Not Urgent & Not Important'}[quadrantId];
+        const quadrantName = { q1: 'Urgent & Important', q2: 'Not Urgent & Important', q3: 'Urgent & Not Important', q4: 'Not Urgent & Not Important' }[quadrantId];
         showLoadingInModal(`Generating tasks for "${goal}"`);
         const prompt = `Based on the goal "${goal}", generate a short list of 3-5 tasks that fit into the "${quadrantName}" quadrant of an Eisenhower Matrix. Provide only a simple list of tasks, each on a new line.`;
         const result = await callGemini(prompt);
@@ -297,6 +311,19 @@ document.addEventListener('DOMContentLoaded', () => {
         closeAiModal();
     };
 
+    // --- PROGRESS BAR UPDATE --- //
+    function updateProgressBar(quadrant) {
+        const bar = document.getElementById(`progress-${quadrant}`);
+        if (!bar) return;
+        const total = tasks[quadrant].length;
+        const completed = tasks[quadrant].filter(t => t.completed).length;
+        const percent = total ? (completed / total) * 100 : 0;
+        bar.style.width = percent + '%';
+    }
+    function updateAllProgressBars() {
+        ['q1', 'q2', 'q3', 'q4'].forEach(updateProgressBar);
+    }
+
     // --- INITIALIZATION & EVENT LISTENERS --- //
     forms.forEach(form => form.addEventListener('submit', handleAddTask));
     taskLists.forEach(list => {
@@ -304,19 +331,19 @@ document.addEventListener('DOMContentLoaded', () => {
         list.addEventListener('drop', handleDrop);
         list.addEventListener('dragend', handleDragEnd);
     });
-    
+
     const savedTheme = localStorage.getItem('theme') || 'dark';
     applyTheme(savedTheme);
 
     focusModeBtn.addEventListener('click', openFocusModal);
-    closeModalBtn.addEventListener('click', closeFocusModal);
-    startTimerBtn.addEventListener('click', startTimer);
-    pauseTimerBtn.addEventListener('click', pauseTimer);
-    resetTimerBtn.addEventListener('click', resetTimer);
-    
+    if (closeModalBtn) closeModalBtn.addEventListener('click', closeFocusModal);
+    if (startTimerBtn) startTimerBtn.addEventListener('click', startTimer);
+    if (pauseTimerBtn) pauseTimerBtn.addEventListener('click', pauseTimer);
+    if (resetTimerBtn) resetTimerBtn.addEventListener('click', resetTimer);
+
     aiSuggestBtns.forEach(btn => btn.addEventListener('click', () => handleAiSuggest(btn.dataset.quadrant)));
-    aiCloseModalBtn.addEventListener('click', closeAiModal);
-    
+    if (aiCloseModalBtn) aiCloseModalBtn.addEventListener('click', closeAiModal);
+
     const displayRandomQuote = () => {
         const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
         quoteText.textContent = randomQuote.text;
@@ -325,4 +352,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
     renderTasks();
     displayRandomQuote();
+
+    // --- EXPORT TO PDF FUNCTIONALITY --- //
+    if (exportPdfBtn) {
+        exportPdfBtn.onclick = function () {
+            const doc = new window.jspdf.jsPDF();
+            doc.setFontSize(16);
+            doc.text("Eisenhower Matrix Tasks", 10, 10);
+
+            ['q1', 'q2', 'q3', 'q4'].forEach((q, i) => {
+                const quadrantTasks = tasks[q];
+                const quadrantName = { q1: 'Urgent & Important', q2: 'Not Urgent & Important', q3: 'Urgent & Not Important', q4: 'Not Urgent & Not Important' }[q];
+                doc.setFontSize(12);
+                doc.text(`${quadrantName}:`, 10, 20 + i * 40);
+                quadrantTasks.forEach((t, idx) => {
+                    doc.text(`- ${t.name} (${t.time || 0} min) [${t.completed ? 'Done' : 'Pending'}]`, 12, 26 + i * 40 + idx * 6);
+                });
+            });
+
+            doc.save("eisenhower-matrix.pdf");
+        };
+    }
 });

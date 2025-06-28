@@ -336,8 +336,53 @@ header {
     to { transform: rotate(360deg); }
 }
 
+/* --- Progress Bar --- */
+.progress-bar {
+    width: 100%;
+    height: 8px;
+    background: #222;
+    border-radius: 4px;
+    margin-top: 8px;
+    overflow: hidden;
+}
+.progress-bar-inner {
+    height: 100%;
+    background: linear-gradient(90deg, #00ff99, #00cfff);
+    width: 0%;
+    transition: width 0.3s;
+}
+
 /* --- Responsive Adjustments --- */
 @media (max-width: 768px) {
     body { padding: 8px; }
     .header-container { flex-direction: column; align-items: stretch; }
+}
+
+@media (max-width: 600px) {
+    .header-container {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+    .controls {
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: center;
+    }
+    .control-btn {
+        width: 100%;
+        justify-content: center;
+        font-size: 1rem;
+        padding: 12px 0;
+    }
+    .matrix-container {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+    .quadrant {
+        padding: 12px;
+    }
+    .modal-content {
+        padding: 16px;
+    }
 }
