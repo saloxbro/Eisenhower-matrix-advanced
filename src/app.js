@@ -5,7 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
         { text: "The secret of getting ahead is getting started.", author: "Mark Twain" },
         { text: "It's not the load that breaks you down, it's the way you carry it.", author: "Lou Holtz" },
         { text: "The best way to predict the future is to create it.", author: "Peter Drucker" },
-        { text: "Productivity is never an accident.", author: "Paul J. Meyer" }
+        { text: "Productivity is never an accident. It is always the result of a commitment to excellence, intelligent planning, and focused effort.", author: "Paul J. Meyer" }
     ];
 
     // --- DOM ELEMENT SELECTORS --- //
@@ -27,11 +27,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const aiModalTitle = document.getElementById('ai-modal-title');
     const aiModalContent = document.getElementById('ai-modal-content');
     const aiCloseModalBtn = document.getElementById('ai-close-modal-btn');
-    // New Theme Switcher Elements
-    const themeToggleBtn = document.getElementById('theme-toggle-btn');
     const themeOptions = document.getElementById('theme-options');
     const currentThemeName = document.getElementById('current-theme-name');
-
 
     // --- STATE MANAGEMENT --- //
     let tasks = JSON.parse(localStorage.getItem('tasks')) || { q1: [], q2: [], q3: [], q4: [] };
@@ -39,14 +36,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- POMODORO TIMER STATE --- //
     let timerInterval = null;
-    let timeLeft = 25 * 60; // 25 minutes in seconds
+    let timeLeft = 25 * 60;
     let isTimerRunning = false;
     let currentFocusTask = null;
     
     // --- GEMINI API HELPER --- //
     async function callGemini(prompt) {
-        // This function remains the same as before
-        const apiKey = ""; 
+        const apiKey = ""; // Canvas handles this
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
         const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
         try {
@@ -69,8 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-
-    // --- CORE FUNCTIONS (mostly unchanged) --- //
+    // --- CORE FUNCTIONS --- //
     const saveTasks = () => {
         localStorage.setItem('tasks', JSON.stringify(tasks));
         updateAllQuadrantSummaries();
@@ -171,11 +166,27 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const updateAllQuadrantSummaries = () => Object.keys(tasks).forEach(updateQuadrantSummary);
 
-    // --- DRAG & DROP (unchanged) --- //
+    // --- DRAG & DROP --- //
     const handleDragStart = (e) => { currentDraggedTask = e.target; setTimeout(() => e.target.classList.add('dragging'), 0); };
     const handleDragEnd = (e) => { e.target.classList.remove('dragging'); currentDraggedTask = null; };
     const handleDragOver = (e) => e.preventDefault();
-    const handleDrop = (e) => { /* ... same as before ... */ };
+    const handleDrop = (e) => {
+        e.preventDefault();
+        const targetList = e.target.closest('.task-list');
+        if (targetList && currentDraggedTask) {
+            const taskId = currentDraggedTask.dataset.taskId;
+            const oldQuadrant = currentDraggedTask.dataset.quadrant;
+            const newQuadrant = targetList.dataset.quadrantId;
+            const taskIndex = tasks[oldQuadrant].findIndex(t => t.id === taskId);
+            if (taskIndex > -1) {
+                const [taskToMove] = tasks[oldQuadrant].splice(taskIndex, 1);
+                taskToMove.quadrant = newQuadrant;
+                tasks[newQuadrant].push(taskToMove);
+                saveTasks();
+                renderTasks();
+            }
+        }
+    };
 
     // --- THEME SWITCHER --- //
     const applyTheme = (theme) => {
@@ -187,43 +198,112 @@ document.addEventListener('DOMContentLoaded', () => {
     themeOptions.addEventListener('click', (e) => {
         e.preventDefault();
         const selectedTheme = e.target.dataset.theme;
-        if (selectedTheme) {
-            applyTheme(selectedTheme);
-        }
+        if (selectedTheme) applyTheme(selectedTheme);
     });
 
-    // --- FOCUS MODE & POMODORO (with active class toggle) --- //
+    // --- FOCUS MODE & POMODORO --- //
+    const updateTimerDisplay = () => {
+        const minutes = Math.floor(timeLeft / 60);
+        const seconds = timeLeft % 60;
+        timerDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    };
+
+    const startTimer = () => {
+        if (isTimerRunning || !currentFocusTask) return;
+        isTimerRunning = true;
+        timerInterval = setInterval(() => {
+            timeLeft--;
+            updateTimerDisplay();
+            if (timeLeft <= 0) {
+                stopTimer();
+                toggleTaskCompletion(currentFocusTask.id, currentFocusTask.quadrant);
+                renderFocusTasks();
+            }
+        }, 1000);
+    };
+    
+    const pauseTimer = () => { isTimerRunning = false; clearInterval(timerInterval); };
+    const resetTimer = () => { pauseTimer(); timeLeft = 25 * 60; updateTimerDisplay(); };
+    const stopTimer = () => { pauseTimer(); };
+    const renderFocusTasks = () => {
+        focusTaskList.innerHTML = '';
+        const importantTasks = tasks.q1.filter(t => !t.completed);
+        if (importantTasks.length === 0) {
+            focusTaskName.textContent = 'All done! Great work!';
+            resetTimer();
+            return;
+        }
+        if (!currentFocusTask || importantTasks.every(t => t.id !== currentFocusTask.id)) {
+            setFocusTask(importantTasks[0]);
+        }
+        importantTasks.forEach(task => {
+            const taskElement = document.createElement('div');
+            taskElement.classList.add('task-item');
+            if (currentFocusTask && task.id === currentFocusTask.id) taskElement.style.borderColor = 'var(--primary)';
+            taskElement.innerHTML = `<span>${task.name}</span>`;
+            taskElement.addEventListener('click', () => setFocusTask(task));
+            focusTaskList.appendChild(taskElement);
+        });
+    };
+    const setFocusTask = (task) => { currentFocusTask = task; focusTaskName.textContent = task.name; resetTimer(); renderFocusTasks(); };
     const openFocusModal = () => { focusModal.classList.add('active'); renderFocusTasks(); };
     const closeFocusModal = () => { pauseTimer(); focusModal.classList.remove('active'); };
-    // Other focus mode functions (startTimer, etc.) are unchanged
 
-    // --- AI FEATURE HANDLERS (with active class toggle) --- //
+    // --- AI FEATURE HANDLERS --- //
     const showAiModal = (title, content) => {
         aiModalTitle.textContent = title;
         aiModalContent.innerHTML = content;
         aiModal.classList.add('active');
     };
+    const showLoadingInModal = (title) => showAiModal(title, '<div class="spinner"></div>');
     const closeAiModal = () => aiModal.classList.remove('active');
-    // Other AI functions (handleAiBreakdown, etc.) are unchanged
+    const handleAiBreakdown = async (task) => {
+        showLoadingInModal(`Breaking Down: "${task.name}"`);
+        const prompt = `Break down the following task into a simple list of actionable sub-tasks. Task: "${task.name}". Provide only a bulleted or numbered list of sub-tasks.`;
+        const result = await callGemini(prompt);
+        const subtasks = result.split('\n').filter(s => s.trim() !== '');
+        let subtaskListHtml = '<ul>' + subtasks.map(s => `<li>${s.replace(/^[*-]\s*/, '')}</li>`).join('') + '</ul>';
+        showAiModal(`Sub-tasks for: "${task.name}"`, subtaskListHtml);
+    };
+    const handleAiSuggest = async (quadrantId) => {
+        const goal = prompt("Enter a high-level goal to generate tasks for (e.g., 'Plan a trip to Japan'):");
+        if (!goal || goal.trim() === '') return;
+        const quadrantName = {q1: 'Urgent & Important', q2: 'Not Urgent & Important', q3: 'Urgent & Not Important', q4: 'Not Urgent & Not Important'}[quadrantId];
+        showLoadingInModal(`Generating tasks for "${goal}"`);
+        const prompt = `Based on the goal "${goal}", generate a short list of 3-5 tasks that fit into the "${quadrantName}" quadrant of an Eisenhower Matrix. Provide only a simple list of tasks, each on a new line.`;
+        const result = await callGemini(prompt);
+        result.split('\n').filter(t => t.trim() !== '').forEach(taskName => {
+            addTask(taskName.replace(/^[*-]\s*/, ''), quadrantId);
+        });
+        closeAiModal();
+    };
 
     // --- INITIALIZATION & EVENT LISTENERS --- //
     forms.forEach(form => form.addEventListener('submit', handleAddTask));
-    taskLists.forEach(list => { list.addEventListener('dragover', handleDragOver); list.addEventListener('drop', handleDrop); list.addEventListener('dragend', handleDragEnd); });
+    taskLists.forEach(list => {
+        list.addEventListener('dragover', handleDragOver);
+        list.addEventListener('drop', handleDrop);
+        list.addEventListener('dragend', handleDragEnd);
+    });
     
-    // Theme setup
-    const savedTheme = localStorage.getItem('theme') || 'dark'; // Default to dark
+    const savedTheme = localStorage.getItem('theme') || 'dark';
     applyTheme(savedTheme);
 
-    // Modals
     focusModeBtn.addEventListener('click', openFocusModal);
     closeModalBtn.addEventListener('click', closeFocusModal);
+    startTimerBtn.addEventListener('click', startTimer);
+    pauseTimerBtn.addEventListener('click', pauseTimer);
+    resetTimerBtn.addEventListener('click', resetTimer);
+    
+    aiSuggestBtns.forEach(btn => btn.addEventListener('click', () => handleAiSuggest(btn.dataset.quadrant)));
     aiCloseModalBtn.addEventListener('click', closeAiModal);
     
-    // AI buttons
-    aiSuggestBtns.forEach(btn => btn.addEventListener('click', () => handleAiSuggest(btn.dataset.quadrant)));
-    
-    // ... (rest of initial listeners: timer, quote, etc.)
-    const displayRandomQuote = () => { /* ... */ };
+    const displayRandomQuote = () => {
+        const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
+        quoteText.textContent = randomQuote.text;
+        quoteAuthor.textContent = randomQuote.author;
+    };
+
     renderTasks();
     displayRandomQuote();
 });
