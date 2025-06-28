@@ -225,27 +225,43 @@ document.addEventListener('DOMContentLoaded', () => {
     const pauseTimer = () => { isTimerRunning = false; clearInterval(timerInterval); };
     const resetTimer = () => { pauseTimer(); timeLeft = 25 * 60; updateTimerDisplay(); };
     const stopTimer = () => { pauseTimer(); };
+    
     const renderFocusTasks = () => {
         focusTaskList.innerHTML = '';
         const importantTasks = tasks.q1.filter(t => !t.completed);
+        
         if (importantTasks.length === 0) {
             focusTaskName.textContent = 'All done! Great work!';
+            if(currentFocusTask) currentFocusTask = null; // Clear the task
             resetTimer();
             return;
         }
+
+        // If current focus task is completed or gone, select the next one
         if (!currentFocusTask || importantTasks.every(t => t.id !== currentFocusTask.id)) {
             setFocusTask(importantTasks[0]);
         }
+        
         importantTasks.forEach(task => {
             const taskElement = document.createElement('div');
             taskElement.classList.add('task-item');
-            if (currentFocusTask && task.id === currentFocusTask.id) taskElement.style.borderColor = 'var(--primary)';
+            if (currentFocusTask && task.id === currentFocusTask.id) {
+                // Use a more noticeable style for the active task in focus mode
+                taskElement.style.cssText = "border-color: var(--primary); transform: scale(1.02);";
+            }
             taskElement.innerHTML = `<span>${task.name}</span>`;
             taskElement.addEventListener('click', () => setFocusTask(task));
             focusTaskList.appendChild(taskElement);
         });
     };
-    const setFocusTask = (task) => { currentFocusTask = task; focusTaskName.textContent = task.name; resetTimer(); renderFocusTasks(); };
+
+    const setFocusTask = (task) => { 
+        currentFocusTask = task; 
+        focusTaskName.textContent = task.name; 
+        resetTimer(); 
+        renderFocusTasks(); 
+    };
+
     const openFocusModal = () => { focusModal.classList.add('active'); renderFocusTasks(); };
     const closeFocusModal = () => { pauseTimer(); focusModal.classList.remove('active'); };
 
@@ -255,8 +271,10 @@ document.addEventListener('DOMContentLoaded', () => {
         aiModalContent.innerHTML = content;
         aiModal.classList.add('active');
     };
+
     const showLoadingInModal = (title) => showAiModal(title, '<div class="spinner"></div>');
     const closeAiModal = () => aiModal.classList.remove('active');
+
     const handleAiBreakdown = async (task) => {
         showLoadingInModal(`Breaking Down: "${task.name}"`);
         const prompt = `Break down the following task into a simple list of actionable sub-tasks. Task: "${task.name}". Provide only a bulleted or numbered list of sub-tasks.`;
@@ -265,6 +283,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let subtaskListHtml = '<ul>' + subtasks.map(s => `<li>${s.replace(/^[*-]\s*/, '')}</li>`).join('') + '</ul>';
         showAiModal(`Sub-tasks for: "${task.name}"`, subtaskListHtml);
     };
+
     const handleAiSuggest = async (quadrantId) => {
         const goal = prompt("Enter a high-level goal to generate tasks for (e.g., 'Plan a trip to Japan'):");
         if (!goal || goal.trim() === '') return;
