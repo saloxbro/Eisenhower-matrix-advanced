@@ -30,7 +30,36 @@ document.addEventListener('DOMContentLoaded', () => {
     const themeOptions = document.getElementById('theme-options');
     const currentThemeName = document.getElementById('current-theme-name');
     const exportPdfBtn = document.getElementById('export-pdf-btn');
+    const exportXlsxBtn = document.getElementById('export-xlsx-btn');
     const themeToggleBtn = document.getElementById('theme-toggle-btn');
+    const focusTaskSelect = document.getElementById('focus-task-select');
+    const focusCustomMins = document.getElementById('focus-custom-mins');
+    const taskSearchInput = document.getElementById('task-search-input');
+    const settingsBtn = document.getElementById('settings-btn');
+    const settingsModal = document.getElementById('settings-modal');
+    const closeSettingsBtn = document.getElementById('close-settings-btn');
+    const settingsTheme = document.getElementById('settings-theme');
+    const settingsTimer = document.getElementById('settings-timer');
+    const saveSettingsBtn = document.getElementById('save-settings-btn');
+    const helpBtn = document.getElementById('help-btn');
+    const helpModal = document.getElementById('help-modal');
+    const closeHelpBtn = document.getElementById('close-help-btn');
+
+    // --- DOM GUARD: Check all required elements exist ---
+    [
+        forms, taskLists, focusModeBtn, focusModal, aiModal, closeModalBtn,
+        focusTaskName, timerDisplay, startTimerBtn, pauseTimerBtn, resetTimerBtn,
+        focusTaskList, quoteText, quoteAuthor, aiModalTitle, aiModalContent,
+        aiCloseModalBtn, themeOptions, currentThemeName, exportPdfBtn, exportXlsxBtn,
+        themeToggleBtn, focusTaskSelect, focusCustomMins, taskSearchInput,
+        settingsBtn, settingsModal, closeSettingsBtn, settingsTheme, settingsTimer,
+        saveSettingsBtn, helpBtn, helpModal, closeHelpBtn
+    ].forEach((el, i) => {
+        if (el === null || el === undefined) {
+            alert("A required element is missing from your HTML. Please check your HTML structure and IDs. (Index: " + i + ")");
+            throw new Error("Missing DOM element(s). See alert for details.");
+        }
+    });
 
     // --- STATE MANAGEMENT --- //
     let tasks = JSON.parse(localStorage.getItem('tasks')) || { q1: [], q2: [], q3: [], q4: [] };
@@ -78,10 +107,17 @@ document.addEventListener('DOMContentLoaded', () => {
         taskLists.forEach(list => {
             list.innerHTML = '';
             const quadrantId = list.dataset.quadrantId;
-            if (tasks[quadrantId].length === 0) {
-                list.innerHTML = `<li class="task-item empty">No tasks yet.</li>`;
+            let filteredTasks = tasks[quadrantId];
+            if (searchQuery) {
+                filteredTasks = filteredTasks.filter(task =>
+                    task.name.toLowerCase().includes(searchQuery) ||
+                    (task.desc && task.desc.toLowerCase().includes(searchQuery))
+                );
+            }
+            if (filteredTasks.length === 0) {
+                list.innerHTML = `<li class="task-item empty">No tasks${searchQuery ? ' found.' : ' yet.'}</li>`;
             } else {
-                tasks[quadrantId].forEach(task => {
+                filteredTasks.forEach(task => {
                     const taskElement = createTaskElement(task);
                     list.appendChild(taskElement);
                 });
@@ -103,6 +139,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="task-details">
                 <input type="checkbox" class="task-checkbox" ${task.completed ? 'checked' : ''} title="Mark as complete">
                 <span class="task-name">${task.name}</span>
+                ${task.desc ? `<div class="task-desc">${task.desc}</div>` : ""}
             </div>
             <div class="task-actions">
                 ${task.time ? `<span class="task-time"><i class="far fa-clock"></i> ${task.time} min</span>` : ''}
@@ -124,18 +161,25 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         const form = e.target;
         const taskInput = form.querySelector('.task-input');
+        const descInput = form.querySelector('.desc-input');
         const timeInput = form.querySelector('.time-input');
         const quadrantId = form.dataset.quadrant;
         const taskName = taskInput.value.trim();
+        const taskDesc = descInput ? descInput.value.trim() : "";
         if (!taskName) return;
-        addTask(taskName, quadrantId, timeInput ? timeInput.value.trim() : null);
+        addTask(taskName, quadrantId, timeInput ? timeInput.value.trim() : null, taskDesc);
         form.reset();
+        showToast("Task added!");
     };
 
-    const addTask = (name, quadrantId, time = null) => {
+    const addTask = (name, quadrantId, time = null, desc = "") => {
         const newTask = {
-            id: generateId(), name, quadrant: quadrantId,
-            time: time ? parseInt(time, 10) : null, completed: false,
+            id: generateId(),
+            name,
+            quadrant: quadrantId,
+            time: time ? parseInt(time, 10) : null,
+            desc,
+            completed: false,
         };
         tasks[quadrantId].push(newTask);
         saveTasks();
@@ -216,67 +260,115 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- FOCUS MODE & POMODORO --- //
-    const updateTimerDisplay = () => {
-        const minutes = Math.floor(timeLeft / 60);
-        const seconds = timeLeft % 60;
-        timerDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-    };
+    let focusTimerInterval = null;
+    let focusTimeLeft = 25 * 60;
+    let focusIsRunning = false;
+    let focusSelectedTask = null;
 
-    const startTimer = () => {
-        if (isTimerRunning || !currentFocusTask) return;
-        isTimerRunning = true;
-        timerInterval = setInterval(() => {
-            timeLeft--;
-            updateTimerDisplay();
-            if (timeLeft <= 0) {
-                stopTimer();
-                toggleTaskCompletion(currentFocusTask.id, currentFocusTask.quadrant);
-                renderFocusTasks();
-            }
-        }, 1000);
-    };
+    let defaultTimer = parseInt(localStorage.getItem('defaultTimer'), 10) || 25;
 
-    const pauseTimer = () => { isTimerRunning = false; clearInterval(timerInterval); };
-    const resetTimer = () => { pauseTimer(); timeLeft = 25 * 60; updateTimerDisplay(); };
-    const stopTimer = () => { pauseTimer(); };
-
-    const renderFocusTasks = () => {
-        focusTaskList.innerHTML = '';
-        const importantTasks = tasks.q1.filter(t => !t.completed);
-
-        if (importantTasks.length === 0) {
+    // Render Q1 tasks in dropdown
+    function renderFocusTaskSelect() {
+        focusTaskSelect.innerHTML = '';
+        const q1Tasks = tasks.q1.filter(t => !t.completed);
+        if (q1Tasks.length === 0) {
+            focusTaskSelect.innerHTML = '<option value="">No tasks</option>';
+            focusSelectedTask = null;
             focusTaskName.textContent = 'All done! Great work!';
-            if (currentFocusTask) currentFocusTask = null;
-            resetTimer();
+            updateFocusTimerDisplay();
             return;
         }
-
-        // If current focus task is completed or gone, select the next one
-        if (!currentFocusTask || importantTasks.every(t => t.id !== currentFocusTask.id)) {
-            setFocusTask(importantTasks[0]);
-        }
-
-        importantTasks.forEach(task => {
-            const taskElement = document.createElement('div');
-            taskElement.classList.add('task-item');
-            if (currentFocusTask && task.id === currentFocusTask.id) {
-                taskElement.style.cssText = "border-color: var(--primary); transform: scale(1.02);";
-            }
-            taskElement.innerHTML = `<span>${task.name}</span>`;
-            taskElement.addEventListener('click', () => setFocusTask(task));
-            focusTaskList.appendChild(taskElement);
+        q1Tasks.forEach(t => {
+            const opt = document.createElement('option');
+            opt.value = t.id;
+            opt.textContent = t.name + (t.time ? ` (${t.time} min)` : '');
+            focusTaskSelect.appendChild(opt);
         });
-    };
+        // If previously selected task still exists, keep it selected
+        if (focusSelectedTask && q1Tasks.some(t => t.id === focusSelectedTask.id)) {
+            focusTaskSelect.value = focusSelectedTask.id;
+            focusSelectedTask = q1Tasks.find(t => t.id === focusSelectedTask.id);
+        } else {
+            focusSelectedTask = q1Tasks[0];
+            focusTaskSelect.value = focusSelectedTask.id;
+        }
+        focusTaskName.textContent = focusSelectedTask.name;
+        focusCustomMins.value = focusSelectedTask.time || 25;
+        setFocusTimer(focusCustomMins.value);
+    }
 
-    const setFocusTask = (task) => {
-        currentFocusTask = task;
-        focusTaskName.textContent = task.name;
-        resetTimer();
-        renderFocusTasks();
-    };
+    // Set timer to X minutes
+    function setFocusTimer(mins) {
+        focusTimeLeft = Math.max(1, parseInt(mins, 10) || defaultTimer) * 60;
+        updateFocusTimerDisplay();
+    }
 
-    const openFocusModal = () => { focusModal.style.display = 'flex'; focusModal.classList.add('active'); renderFocusTasks(); };
-    const closeFocusModal = () => { focusModal.style.display = 'none'; focusModal.classList.remove('active'); pauseTimer(); };
+    // Update timer display
+    function updateFocusTimerDisplay() {
+        const min = Math.floor(focusTimeLeft / 60);
+        const sec = focusTimeLeft % 60;
+        timerDisplay.textContent = `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+    }
+
+    // Start timer
+    function startFocusTimer() {
+        if (focusIsRunning || !focusSelectedTask) return;
+        focusIsRunning = true;
+        focusTimerInterval = setInterval(() => {
+            focusTimeLeft--;
+            updateFocusTimerDisplay();
+            if (focusTimeLeft <= 0) {
+                clearInterval(focusTimerInterval);
+                focusIsRunning = false;
+                toggleTaskCompletion(focusSelectedTask.id, focusSelectedTask.quadrant);
+                renderTasks();
+                renderFocusTaskSelect();
+            }
+        }, 1000);
+    }
+
+    // Pause timer
+    function pauseFocusTimer() {
+        focusIsRunning = false;
+        clearInterval(focusTimerInterval);
+    }
+
+    // Reset timer
+    function resetFocusTimer() {
+        pauseFocusTimer();
+        setFocusTimer(focusCustomMins.value);
+    }
+
+    // When modal opens
+    function openFocusModal() {
+        focusModal.style.display = 'flex';
+        focusModal.classList.add('active');
+        renderFocusTaskSelect();
+        updateFocusTimerDisplay();
+    }
+
+    // When modal closes
+    function closeFocusModal() {
+        focusModal.style.display = 'none';
+        focusModal.classList.remove('active');
+        pauseFocusTimer();
+    }
+
+    // Event listeners for focus mode
+    focusTaskSelect.addEventListener('change', () => {
+        const taskId = focusTaskSelect.value;
+        const q1Tasks = tasks.q1.filter(t => !t.completed);
+        focusSelectedTask = q1Tasks.find(t => t.id === taskId);
+        focusTaskName.textContent = focusSelectedTask ? focusSelectedTask.name : '';
+        focusCustomMins.value = focusSelectedTask && focusSelectedTask.time ? focusSelectedTask.time : 25;
+        setFocusTimer(focusCustomMins.value);
+    });
+    focusCustomMins.addEventListener('input', () => {
+        setFocusTimer(focusCustomMins.value);
+    });
+    startTimerBtn.addEventListener('click', startFocusTimer);
+    pauseTimerBtn.addEventListener('click', pauseFocusTimer);
+    resetTimerBtn.addEventListener('click', resetFocusTimer);
 
     // --- AI FEATURE HANDLERS --- //
     const showAiModal = (title, content) => {
@@ -324,13 +416,28 @@ document.addEventListener('DOMContentLoaded', () => {
         ['q1', 'q2', 'q3', 'q4'].forEach(updateProgressBar);
     }
 
+    // --- TOAST NOTIFICATION --- //
+    function showToast(msg) {
+        const toast = document.getElementById('toast');
+        toast.textContent = msg;
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 2000);
+    }
+
     // --- INITIALIZATION & EVENT LISTENERS --- //
-    forms.forEach(form => form.addEventListener('submit', handleAddTask));
-    taskLists.forEach(list => {
-        list.addEventListener('dragover', handleDragOver);
-        list.addEventListener('drop', handleDrop);
-        list.addEventListener('dragend', handleDragEnd);
-    });
+    if (forms && forms.length) {
+        forms.forEach(form => form.addEventListener('submit', handleAddTask));
+    }
+    if (taskLists && taskLists.length) {
+        taskLists.forEach(list => {
+            list.addEventListener('dragover', handleDragOver);
+            list.addEventListener('drop', handleDrop);
+            list.addEventListener('dragend', handleDragEnd);
+        });
+    }
+    if (aiSuggestBtns && aiSuggestBtns.length) {
+        aiSuggestBtns.forEach(btn => btn.addEventListener('click', () => handleAiSuggest(btn.dataset.quadrant)));
+    }
 
     const savedTheme = localStorage.getItem('theme') || 'dark';
     applyTheme(savedTheme);
@@ -340,9 +447,60 @@ document.addEventListener('DOMContentLoaded', () => {
     if (startTimerBtn) startTimerBtn.addEventListener('click', startTimer);
     if (pauseTimerBtn) pauseTimerBtn.addEventListener('click', pauseTimer);
     if (resetTimerBtn) resetTimerBtn.addEventListener('click', resetTimer);
-
-    aiSuggestBtns.forEach(btn => btn.addEventListener('click', () => handleAiSuggest(btn.dataset.quadrant)));
     if (aiCloseModalBtn) aiCloseModalBtn.addEventListener('click', closeAiModal);
+
+    let searchQuery = '';
+
+    if (taskSearchInput) {
+        taskSearchInput.addEventListener('input', (e) => {
+            searchQuery = e.target.value.trim().toLowerCase();
+            renderTasks();
+        });
+    }
+
+    if (settingsBtn) settingsBtn.addEventListener('click', () => {
+        // Load current settings
+        settingsTheme.value = localStorage.getItem('theme') || 'dark';
+        settingsTimer.value = localStorage.getItem('defaultTimer') || 25;
+        settingsModal.style.display = 'flex';
+        settingsModal.classList.add('active');
+    });
+    if (closeSettingsBtn) closeSettingsBtn.addEventListener('click', () => {
+        settingsModal.style.display = 'none';
+        settingsModal.classList.remove('active');
+    });
+    if (saveSettingsBtn) saveSettingsBtn.addEventListener('click', () => {
+        localStorage.setItem('theme', settingsTheme.value);
+        localStorage.setItem('defaultTimer', settingsTimer.value);
+        applyTheme(settingsTheme.value);
+        showToast("Settings saved!");
+        settingsModal.style.display = 'none';
+        settingsModal.classList.remove('active');
+    });
+    if (helpBtn) helpBtn.addEventListener('click', () => {
+        helpModal.style.display = 'flex';
+        helpModal.classList.add('active');
+    });
+    if (closeHelpBtn) closeHelpBtn.addEventListener('click', () => {
+        helpModal.style.display = 'none';
+        helpModal.classList.remove('active');
+    });
+
+    // --- DOM GUARD: Check all required elements exist ---
+    [
+        forms, taskLists, focusModeBtn, focusModal, aiModal, closeModalBtn,
+        focusTaskName, timerDisplay, startTimerBtn, pauseTimerBtn, resetTimerBtn,
+        focusTaskList, quoteText, quoteAuthor, aiModalTitle, aiModalContent,
+        aiCloseModalBtn, themeOptions, currentThemeName, exportPdfBtn, exportXlsxBtn,
+        themeToggleBtn, focusTaskSelect, focusCustomMins, taskSearchInput,
+        settingsBtn, settingsModal, closeSettingsBtn, settingsTheme, settingsTimer,
+        saveSettingsBtn, helpBtn, helpModal, closeHelpBtn
+    ].forEach((el, i) => {
+        if (el === null || el === undefined) {
+            alert("A required element is missing from your HTML. Please check your HTML structure and IDs. (Index: " + i + ")");
+            throw new Error("Missing DOM element(s). See alert for details.");
+        }
+    });
 
     const displayRandomQuote = () => {
         const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
@@ -356,21 +514,97 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- EXPORT TO PDF FUNCTIONALITY --- //
     if (exportPdfBtn) {
         exportPdfBtn.onclick = function () {
-            const doc = new window.jspdf.jsPDF();
-            doc.setFontSize(16);
-            doc.text("Eisenhower Matrix Tasks", 10, 10);
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const quadrantNames = {
+                q1: 'Urgent & Important',
+                q2: 'Not Urgent & Important',
+                q3: 'Urgent & Not Important',
+                q4: 'Not Urgent & Not Important'
+            };
 
-            ['q1', 'q2', 'q3', 'q4'].forEach((q, i) => {
-                const quadrantTasks = tasks[q];
-                const quadrantName = { q1: 'Urgent & Important', q2: 'Not Urgent & Important', q3: 'Urgent & Not Important', q4: 'Not Urgent & Not Important' }[q];
-                doc.setFontSize(12);
-                doc.text(`${quadrantName}:`, 10, 20 + i * 40);
-                quadrantTasks.forEach((t, idx) => {
-                    doc.text(`- ${t.name} (${t.time || 0} min) [${t.completed ? 'Done' : 'Pending'}]`, 12, 26 + i * 40 + idx * 6);
+            // --- Cover Page ---
+            doc.setFontSize(22);
+            doc.text("Eisenhower Matrix Tasks", 105, 30, { align: "center" });
+            doc.setFontSize(14);
+            doc.text(`Exported: ${new Date().toLocaleString()}`, 105, 40, { align: "center" });
+            doc.setFontSize(12);
+            doc.text("Each quadrant is on a separate page.", 105, 50, { align: "center" });
+            doc.addPage();
+
+            // --- Quadrant Tables ---
+            Object.keys(tasks).forEach((q, idx) => {
+                if (idx > 0) doc.addPage();
+                doc.setFontSize(16);
+                doc.text(quadrantNames[q], 14, 18);
+
+                const data = tasks[q].map(t => [
+                    t.name,
+                    t.desc || "",
+                    t.time || "",
+                    t.completed ? "Done" : "Pending"
+                ]);
+
+                doc.autoTable({
+                    head: [["Task Name", "Description", "Time (min)", "Status"]],
+                    body: data,
+                    startY: 24,
+                    styles: { fontSize: 11, cellPadding: 3 },
+                    headStyles: { fillColor: [79, 70, 229] }, // Indigo
+                    alternateRowStyles: { fillColor: [245, 245, 245] }
                 });
             });
 
+            // --- Footer with page numbers ---
+            const pageCount = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= pageCount; i++) {
+                doc.setPage(i);
+                doc.setFontSize(10);
+                doc.text(`Page ${i} of ${pageCount}`, 200, 290, { align: "right" });
+                doc.text("Eisenhower Matrix AI", 14, 290);
+            }
+
             doc.save("eisenhower-matrix.pdf");
+            showToast("PDF exported!");
+        };
+    }
+
+    if (exportXlsxBtn) {
+        exportXlsxBtn.onclick = function () {
+            // Prepare data for each quadrant
+            const quadrantNames = {
+                q1: 'Urgent & Important',
+                q2: 'Not Urgent & Important',
+                q3: 'Urgent & Not Important',
+                q4: 'Not Urgent & Not Important'
+            };
+            const sheets = {};
+
+            // Each quadrant as a separate sheet
+            Object.keys(tasks).forEach(q => {
+                const data = [
+                    ["Task Name", "Description", "Time (min)", "Status"]
+                ];
+                tasks[q].forEach(t => {
+                    data.push([
+                        t.name,
+                        t.desc || "",
+                        t.time || "",
+                        t.completed ? "Done" : "Pending"
+                    ]);
+                });
+                sheets[quadrantNames[q]] = XLSX.utils.aoa_to_sheet(data);
+            });
+
+            // Create workbook
+            const wb = XLSX.utils.book_new();
+            Object.keys(sheets).forEach(sheetName => {
+                XLSX.utils.book_append_sheet(wb, sheets[sheetName], sheetName);
+            });
+
+            // Export
+            XLSX.writeFile(wb, "eisenhower-matrix.xlsx");
+            showToast("XLSX exported!");
         };
     }
 });
