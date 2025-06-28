@@ -1,11 +1,13 @@
-import { resolve } from 'path';
+// vite.config.js
 
 export default {
+  // Keep the source code root as 'src'
   root: 'src',
+
   build: {
-    // This tells Vite to build the project into a `dist` folder in the project root.
-    outDir: resolve(__dirname, '..', 'dist'),
-    // Ensure the output directory is cleared before each build.
+    // Set the output directory to go one level up from 'src' to the project root.
+    outDir: '../dist',
+    // It's good practice to ensure the output directory is cleared on each build.
     emptyOutDir: true,
-  },
+  }
 };
